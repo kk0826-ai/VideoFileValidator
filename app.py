@@ -651,7 +651,7 @@ html_code = """
                     }
                     
                     let videoBitrateMbps = vMeta.videoBitrate / 1000000;
-                    if (videoBitrateMbps > 0 && videoBitrateMbps < 8) amazonErrors.push(`Video bitrate: ${videoBitrateMbps.toFixed(1)} Mbps (Expected min 8 Mbps)`);
+                    if (videoBitrateMbps > 0 && videoBitrateMbps < 15) amazonErrors.push(`Video bitrate: ${videoBitrateMbps.toFixed(1)} Mbps (Expected min 15 Mbps)`);
 
                     // Check for 1920x1080 OR 1080x1920
                     if (vMeta.width > 0 && vMeta.height > 0) {
