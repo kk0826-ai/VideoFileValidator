@@ -498,7 +498,6 @@ html_code = """
                     clearTimeout(timeout);
                     resolved = true;
                     
-                    // Approximate FPS based on timescale and duration of the file
                     let fileDurationSecs = info.duration / info.timescale;
 
                     for (let i = 0; i < info.tracks.length; i++) {
@@ -522,7 +521,6 @@ html_code = """
                             metadataResult.height = track.video.height || 0;
                             metadataResult.videoBitrate = track.bitrate || 0;
                             
-                            // Rough calculation of FPS: Number of samples / duration in seconds
                             if (fileDurationSecs > 0) {
                                 metadataResult.fps = track.nb_samples / fileDurationSecs;
                             }
@@ -554,7 +552,6 @@ html_code = """
                     }
                 };
                 
-                // Read first 15MB to ensure we capture SPS headers and moov atoms
                 const slice = file.slice(0, 1024 * 1024 * 15); 
                 reader.readAsArrayBuffer(slice);
             });
@@ -599,7 +596,6 @@ html_code = """
                 let audioCodecHtml = "-";
                 let amazonSpecHtml = "-";
                 
-                // 1. File Type Check
                 if (!allowedFormats.includes(logicExt)) {
                     status = "Fail"; 
                     let expectedMsg = allowedFormats.join(' or ');
@@ -609,13 +605,11 @@ html_code = """
                     continue;
                 }
                 
-                // 2. File Size Check
                 if (sizeMB > maxMBAllowed) { 
                     status = "Fail";
                     errors.push(`File size exceeds ${maxMBAllowed} MB limit`);
                 }
 
-                // 3. Metadata Extraction
                 let vMeta = await checkVideoMetadata(file);
                 
                 if (!vMeta.hasAudio) {
@@ -630,21 +624,27 @@ html_code = """
                     audioCodecHtml = vMeta.codecName;
                 }
 
-                // 4. Amazon CTV Specific Forensic Checks
+                // Amazon CTV Specific Forensic Checks
                 if (currentSpecMode === 'CTV') {
                     let amazonErrors = [];
                     
-                    // Stream Counts
                     if (vMeta.videoStreamCount !== 1) amazonErrors.push(`Found ${vMeta.videoStreamCount} video streams (Expected 1)`);
                     if (vMeta.audioStreamCount !== 1) amazonErrors.push(`Found ${vMeta.audioStreamCount} audio streams (Expected 1)`);
                     
-                    // Audio Checks
                     if (vMeta.audioChannels !== 2 && vMeta.audioChannels > 0) amazonErrors.push(`Audio channels: ${vMeta.audioChannels} (Expected 2/Stereo)`);
-                    if (vMeta.sampleRate > 0 && vMeta.sampleRate < 48000) amazonErrors.push(`Sample rate: ${(vMeta.sampleRate/1000).toFixed(2)} kHz (Expected 48 kHz)`);
+                    
+                    // Allow 44.1 kHz OR 48 kHz
+                    if (vMeta.sampleRate > 0) {
+                        let is44k = Math.abs(vMeta.sampleRate - 44100) < 100;
+                        let is48k = Math.abs(vMeta.sampleRate - 48000) < 100;
+                        if (!is44k && !is48k) {
+                            amazonErrors.push(`Sample rate: ${(vMeta.sampleRate/1000).toFixed(2)} kHz (Expected 44.1 or 48 kHz)`);
+                        }
+                    }
+
                     let bitrateKbps = vMeta.audioBitrate / 1000;
                     if (bitrateKbps > 0 && bitrateKbps < 192) amazonErrors.push(`Audio bitrate: ${bitrateKbps.toFixed(0)} Kbps (Expected min 192 Kbps)`);
 
-                    // Video Checks
                     let vCodec = vMeta.videoCodec.toLowerCase();
                     if (!vCodec.includes('avc1') && !vCodec.includes('h264') && vCodec !== "none") {
                         amazonErrors.push(`Video codec: ${vMeta.videoCodec} (Expected H.264/avc1)`);
@@ -653,13 +653,22 @@ html_code = """
                     let videoBitrateMbps = vMeta.videoBitrate / 1000000;
                     if (videoBitrateMbps > 0 && videoBitrateMbps < 8) amazonErrors.push(`Video bitrate: ${videoBitrateMbps.toFixed(1)} Mbps (Expected min 8 Mbps)`);
 
+                    // Check for 1920x1080 OR 1080x1920
                     if (vMeta.width > 0 && vMeta.height > 0) {
-                        if (vMeta.height < 1080) amazonErrors.push(`Resolution: ${vMeta.width}x${vMeta.height} (Expected min 1080p)`);
                         let aspectRatio = vMeta.width / vMeta.height;
-                        if (Math.abs(aspectRatio - (16/9)) > 0.05) amazonErrors.push(`Aspect ratio is not 16:9`);
+                        let is16x9 = Math.abs(aspectRatio - (16/9)) <= 0.05;
+                        let is9x16 = Math.abs(aspectRatio - (9/16)) <= 0.05;
+                        
+                        if (!is16x9 && !is9x16) {
+                            amazonErrors.push(`Aspect ratio is ${(aspectRatio).toFixed(2)} (Expected 16:9 or 9:16)`);
+                        }
+
+                        if ((is16x9 && (vMeta.width < 1920 || vMeta.height < 1080)) || 
+                            (is9x16 && (vMeta.width < 1080 || vMeta.height < 1920))) {
+                            amazonErrors.push(`Resolution: ${vMeta.width}x${vMeta.height} (Expected 1920x1080 or 1080x1920)`);
+                        }
                     }
 
-                    // FPS verification against standard Amazon rates
                     if (vMeta.fps > 0) {
                         let validFps = [23.976, 24, 25, 29.97, 30];
                         let isFpsValid = validFps.some(f => Math.abs(vMeta.fps - f) < 0.5);
