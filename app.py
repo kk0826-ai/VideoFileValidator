@@ -12,7 +12,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 2. Commercial-Grade HTML/JS Code with Amazon CTV Spec Column Support
+# 2. Commercial-Grade HTML/JS Code with Deep Metadata Parsing
 html_code = """
 <!DOCTYPE html>
 <html lang="en">
@@ -20,7 +20,7 @@ html_code = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- MP4Box.js for deep client-side metadata and bitrate parsing -->
+    <!-- MP4Box.js for deep client-side metadata parsing -->
     <script src="https://cdn.jsdelivr.net/npm/mp4box@0.5.2/dist/mp4box.all.min.js"></script>
     
     <style>
@@ -383,11 +383,11 @@ html_code = """
             } else {
                 return `
                     <tr>
-                        <th style="width: 28%;"><div class="th-content"><svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg> FILE NAME</div></th>
+                        <th style="width: 25%;"><div class="th-content"><svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg> FILE NAME</div></th>
                         <th style="width: 13%;"><div class="th-content"><svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/></svg> FILE TYPE</div></th>
-                        <th style="width: 13%;"><div class="th-content"><svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zM5 15h14v3H5z"/></svg> SIZE</div></th>
+                        <th style="width: 12%;"><div class="th-content"><svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zM5 15h14v3H5z"/></svg> SIZE</div></th>
                         <th style="width: 15%;"><div class="th-content"><svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg> AUDIO CODEC</div></th>
-                        <th style="width: 18%;"><div class="th-content"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg> AMAZON CTV SPECS</div></th>
+                        <th style="width: 22%;"><div class="th-content"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg> AMAZON CTV SPECS</div></th>
                         <th style="width: 13%;"><div class="th-content"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg> STATUS</div></th>
                     </tr>
                 `;
@@ -475,7 +475,13 @@ html_code = """
                     isAAC: false,
                     codecName: "None",
                     sampleRate: 0,
-                    bitrate: 0,
+                    audioBitrate: 0,
+                    audioChannels: 0,
+                    audioStreamCount: 0,
+                    videoStreamCount: 0,
+                    videoCodec: "None",
+                    videoBitrate: 0,
+                    fps: 0,
                     width: 0,
                     height: 0
                 };
@@ -483,30 +489,43 @@ html_code = """
                 const timeout = setTimeout(() => {
                     if (!resolved) {
                         resolved = true;
-                        resolve({ hasAudio: true, isAAC: true, codecName: "AAC", sampleRate: 48000, bitrate: 256000, width: 1920, height: 1080 });
+                        resolve(metadataResult); // Returns default/failed if timeout
                     }
-                }, 2500);
+                }, 3000);
 
                 mp4boxfile.onReady = function(info) {
                     if (resolved) return;
                     clearTimeout(timeout);
                     resolved = true;
                     
+                    // Approximate FPS based on timescale and duration of the file
+                    let fileDurationSecs = info.duration / info.timescale;
+
                     for (let i = 0; i < info.tracks.length; i++) {
                         let track = info.tracks[i];
                         if (track.audio) {
+                            metadataResult.audioStreamCount++;
                             metadataResult.hasAudio = true;
                             metadataResult.codecName = track.codec || "AAC";
                             if (metadataResult.codecName.toLowerCase().startsWith('mp4a') || metadataResult.codecName.toLowerCase().includes('aac')) {
                                 metadataResult.isAAC = true;
                                 metadataResult.codecName = "AAC";
                             }
-                            metadataResult.sampleRate = track.audio.sample_rate || 48000;
-                            metadataResult.bitrate = track.bitrate || 256000;
+                            metadataResult.sampleRate = track.audio.sample_rate || 0;
+                            metadataResult.audioChannels = track.audio.channel_count || 0;
+                            metadataResult.audioBitrate = track.bitrate || 0;
                         }
                         if (track.video) {
-                            metadataResult.width = track.video.width || 1920;
-                            metadataResult.height = track.video.height || 1080;
+                            metadataResult.videoStreamCount++;
+                            metadataResult.videoCodec = track.codec || "None";
+                            metadataResult.width = track.video.width || 0;
+                            metadataResult.height = track.video.height || 0;
+                            metadataResult.videoBitrate = track.bitrate || 0;
+                            
+                            // Rough calculation of FPS: Number of samples / duration in seconds
+                            if (fileDurationSecs > 0) {
+                                metadataResult.fps = track.nb_samples / fileDurationSecs;
+                            }
                         }
                     }
                     resolve(metadataResult);
@@ -516,7 +535,7 @@ html_code = """
                     if (resolved) return;
                     clearTimeout(timeout);
                     resolved = true;
-                    resolve({ hasAudio: true, isAAC: true, codecName: "AAC", sampleRate: 48000, bitrate: 256000, width: 1920, height: 1080 });
+                    resolve(metadataResult);
                 };
 
                 const reader = new FileReader();
@@ -530,12 +549,13 @@ html_code = """
                         if (!resolved) {
                             resolved = true;
                             clearTimeout(timeout);
-                            resolve({ hasAudio: true, isAAC: true, codecName: "AAC", sampleRate: 48000, bitrate: 256000, width: 1920, height: 1080 });
+                            resolve(metadataResult);
                         }
                     }
                 };
                 
-                const slice = file.slice(0, 1024 * 1024 * 10); 
+                // Read first 15MB to ensure we capture SPS headers and moov atoms
+                const slice = file.slice(0, 1024 * 1024 * 15); 
                 reader.readAsArrayBuffer(slice);
             });
         }
@@ -554,7 +574,7 @@ html_code = """
         }
 
         async function handleFiles(files) {
-            document.getElementById('upload-main-text').innerText = "Processing videos...";
+            document.getElementById('upload-main-text').innerText = "Processing videos (This may take a second)...";
             document.getElementById('upload-icon-svg').style.color = "#3B82F6";
             await new Promise(resolve => setTimeout(resolve, 50)); 
 
@@ -595,13 +615,13 @@ html_code = """
                     errors.push(`File size exceeds ${maxMBAllowed} MB limit`);
                 }
 
-                // 3. Metadata & Audio Codec Check
+                // 3. Metadata Extraction
                 let vMeta = await checkVideoMetadata(file);
                 
                 if (!vMeta.hasAudio) {
                     status = "Fail";
-                    audioCodecHtml = `<span class='text-error-detail'>No Audio Track</span>`;
-                    errors.push("Missing audio track (Expected AAC)");
+                    audioCodecHtml = `<span class='text-error-detail'>No Audio</span>`;
+                    errors.push("Missing audio track");
                 } else if (!vMeta.isAAC) {
                     status = "Fail";
                     audioCodecHtml = `<span class='text-error-detail'>${vMeta.codecName}</span>`;
@@ -610,32 +630,50 @@ html_code = """
                     audioCodecHtml = vMeta.codecName;
                 }
 
-                // 4. Amazon CTV Specific Checks (Only evaluated and displayed in CTV mode)
+                // 4. Amazon CTV Specific Forensic Checks
                 if (currentSpecMode === 'CTV') {
                     let amazonErrors = [];
                     
-                    // Check Sample Rate (Amazon expects 48.00 kHz)
-                    if (vMeta.sampleRate > 0 && vMeta.sampleRate < 48000) {
-                        amazonErrors.push(`Sample rate (${(vMeta.sampleRate/1000).toFixed(2)} kHz) below 48 kHz`);
+                    // Stream Counts
+                    if (vMeta.videoStreamCount !== 1) amazonErrors.push(`Found ${vMeta.videoStreamCount} video streams (Expected 1)`);
+                    if (vMeta.audioStreamCount !== 1) amazonErrors.push(`Found ${vMeta.audioStreamCount} audio streams (Expected 1)`);
+                    
+                    // Audio Checks
+                    if (vMeta.audioChannels !== 2 && vMeta.audioChannels > 0) amazonErrors.push(`Audio channels: ${vMeta.audioChannels} (Expected 2/Stereo)`);
+                    if (vMeta.sampleRate > 0 && vMeta.sampleRate < 48000) amazonErrors.push(`Sample rate: ${(vMeta.sampleRate/1000).toFixed(2)} kHz (Expected 48 kHz)`);
+                    let bitrateKbps = vMeta.audioBitrate / 1000;
+                    if (bitrateKbps > 0 && bitrateKbps < 192) amazonErrors.push(`Audio bitrate: ${bitrateKbps.toFixed(0)} Kbps (Expected min 192 Kbps)`);
+
+                    // Video Checks
+                    let vCodec = vMeta.videoCodec.toLowerCase();
+                    if (!vCodec.includes('avc1') && !vCodec.includes('h264') && vCodec !== "none") {
+                        amazonErrors.push(`Video codec: ${vMeta.videoCodec} (Expected H.264/avc1)`);
                     }
                     
-                    // Check Audio Bitrate (Amazon requires min 192 Kbps)
-                    let bitrateKbps = vMeta.bitrate / 1000;
-                    if (bitrateKbps > 0 && bitrateKbps < 192) {
-                        amazonErrors.push(`Audio bit rate (${bitrateKbps.toFixed(0)} Kbps) is less than 192 Kbps`);
+                    let videoBitrateMbps = vMeta.videoBitrate / 1000000;
+                    if (videoBitrateMbps > 0 && videoBitrateMbps < 8) amazonErrors.push(`Video bitrate: ${videoBitrateMbps.toFixed(1)} Mbps (Expected min 8 Mbps)`);
+
+                    if (vMeta.width > 0 && vMeta.height > 0) {
+                        if (vMeta.height < 1080) amazonErrors.push(`Resolution: ${vMeta.width}x${vMeta.height} (Expected min 1080p)`);
+                        let aspectRatio = vMeta.width / vMeta.height;
+                        if (Math.abs(aspectRatio - (16/9)) > 0.05) amazonErrors.push(`Aspect ratio is not 16:9`);
                     }
 
-                    // Resolution check for Prime Video Ads (1080p standard)
-                    if (vMeta.width > 0 && vMeta.height > 0 && vMeta.height < 1080) {
-                        amazonErrors.push(`Resolution (${vMeta.width}x${vMeta.height}) below recommended 1080p`);
+                    // FPS verification against standard Amazon rates
+                    if (vMeta.fps > 0) {
+                        let validFps = [23.976, 24, 25, 29.97, 30];
+                        let isFpsValid = validFps.some(f => Math.abs(vMeta.fps - f) < 0.5);
+                        if (!isFpsValid) {
+                            amazonErrors.push(`Frame rate: ${vMeta.fps.toFixed(2)} fps is not supported`);
+                        }
                     }
 
                     if (amazonErrors.length > 0) {
                         status = "Fail";
-                        amazonSpecHtml = `<span class='text-error-detail'>Failed Amazon Check</span>`;
-                        amazonErrors.forEach(ae => errors.push(`[Amazon CTV] ${ae}`));
+                        amazonSpecHtml = `<span class='text-error-detail'>Failed Amazon Criteria</span>`;
+                        amazonErrors.forEach(ae => errors.push(`[Amazon] ${ae}`));
                     } else {
-                        amazonSpecHtml = `<span style="color: #22C55E;">Passed Amazon Check</span>`;
+                        amazonSpecHtml = `<span style="color: #22C55E;">Meets Amazon Specs</span>`;
                     }
                 }
 
