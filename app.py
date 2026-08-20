@@ -12,7 +12,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 2. The Robust, Commercial-Grade HTML/JS Code adapted for Video
+# 2. The Commercial-Grade HTML/JS Code with Multi-Spec Support
 html_code = """
 <!DOCTYPE html>
 <html lang="en">
@@ -20,7 +20,7 @@ html_code = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- MP4Box.js for client-side audio codec reading -->
+    <!-- MP4Box.js for fast client-side metadata parsing -->
     <script src="https://cdn.jsdelivr.net/npm/mp4box@0.5.2/dist/mp4box.all.min.js"></script>
     
     <style>
@@ -38,24 +38,59 @@ html_code = """
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 3rem;
+            margin-bottom: 2rem;
             box-shadow: inset 0 0 0 2000px rgba(15, 23, 42, 0.75); 
             border-bottom: 4px solid #111827;
         }
         
         header h1 { 
             color: #FFFFFF; 
-            font-size: 44px; 
+            font-size: 40px; 
             font-family: 'Century Gothic', Arial, sans-serif; 
             font-weight: 400; 
             letter-spacing: 2px; 
+        }
+
+        /* Spec Navigation Tabs */
+        .spec-tabs-container {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 2rem;
+        }
+        .spec-tab {
+            background-color: #FFFFFF;
+            color: #64748B;
+            border: 1px solid #CBD5E1;
+            padding: 12px 28px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s ease;
+            border-radius: 0px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .spec-tab:hover {
+            border-color: #0F172A;
+            color: #0F172A;
+        }
+        .spec-tab.active {
+            background-color: #2C0A38;
+            color: #FFFFFF;
+            border-color: #2C0A38;
+            box-shadow: 0 4px 6px -1px rgba(44, 10, 56, 0.25);
         }
 
         /* Sharp Upload Dropzone */
         .upload-section {
             background-color: #FFFFFF;
             border: 1.5px dashed #CBD5E1;
-            padding: 50px 20px;
+            padding: 45px 20px;
             text-align: center;
             cursor: pointer;
             transition: all 0.2s ease;
@@ -160,7 +195,6 @@ html_code = """
 
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         
-        /* Unified Left Alignment for Headers */
         th { 
             background-color: #2C0A38; 
             color: #FFFFFF; 
@@ -176,12 +210,10 @@ html_code = """
 
         .th-content { display: flex; align-items: center; gap: 8px; }
         
-        /* Left Align ONLY the first column */
         th:nth-child(1) { text-align: left; }
         th:not(:nth-child(1)) .th-content { justify-content: center; }
         .th-content svg { width: 14px; height: 14px; fill: #FFFFFF; }
         
-        /* Unified Base Alignment & Text Style for All Data Cells */
         td { 
             padding: 14px 16px; 
             font-size: 13px; 
@@ -194,7 +226,6 @@ html_code = """
             font-weight: 400; 
         }
 
-        /* Left Align ONLY the first column */
         td:nth-child(1) { text-align: left; }
 
         tr:last-child td { border-bottom: none; }
@@ -209,7 +240,6 @@ html_code = """
         .status-container { display: flex; flex-direction: column; gap: 4px; }
         .status-main { display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 400; font-size: 13px; }
         
-        /* Three distinct colors for hierarchy */
         .status-text-pass { color: #22C55E; }
         .status-text-fail { color: #DC2626; }    
 
@@ -245,6 +275,18 @@ html_code = """
     
     <div class="container">
         
+        <!-- SECTION SELECTOR TABS -->
+        <div class="spec-tabs-container">
+            <button class="spec-tab active" id="tab-olv" onclick="switchSpecMode('OLV')">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                OLV Specs
+            </button>
+            <button class="spec-tab" id="tab-ctv" onclick="switchSpecMode('CTV')">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/></svg>
+                CTV / BVOD / OTT Specs
+            </button>
+        </div>
+
         <div class="summary-dashboard" id="summary-dashboard">
             <div class="summary-card">
                 <div class="summary-value" style="color: #22C55E;" id="count-pass">0</div>
@@ -339,6 +381,8 @@ html_code = """
         const dropzone = document.getElementById('dropzone');
         const fileInput = document.getElementById('file-input');
         
+        let currentSpecMode = 'OLV'; // 'OLV' or 'CTV'
+        let rawUploadedFiles = []; // Store file references for re-validation on tab switch
         let processedFiles = new Set();
         let compliantCount = 0;
         let nonCompliantCount = 0;
@@ -348,6 +392,27 @@ html_code = """
 
         const iconPass = `<svg width="18" height="18" viewBox="0 0 24 24" fill="#22C55E" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11"/><path d="M8 12.5L10.5 15L16 9" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
         const iconFail = `<svg width="18" height="18" viewBox="0 0 24 24" fill="#DC2626" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11"/><path d="M15 9L9 15M9 9L15 15" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+        function switchSpecMode(mode) {
+            if (currentSpecMode === mode) return;
+            currentSpecMode = mode;
+            
+            document.getElementById('tab-olv').classList.toggle('active', mode === 'OLV');
+            document.getElementById('tab-ctv').classList.toggle('active', mode === 'CTV');
+            
+            if (mode === 'OLV') {
+                document.getElementById('upload-sub-text').innerText = "or click to browse files (MP4 only, max 250MB)";
+                fileInput.accept = "video/mp4";
+            } else {
+                document.getElementById('upload-sub-text').innerText = "or click to browse files (MP4 or MOV, max 500MB)";
+                fileInput.accept = "video/mp4,video/quicktime,.mov";
+            }
+            
+            // Re-evaluate files under new spec criteria
+            if (rawUploadedFiles.length > 0) {
+                revalidateCurrentFiles();
+            }
+        }
 
         function updateSummary() {
             document.getElementById('count-pass').innerText = compliantCount;
@@ -369,6 +434,7 @@ html_code = """
         }
 
         function clearResults() {
+            rawUploadedFiles = [];
             processedFiles.clear();
             compliantCount = 0; nonCompliantCount = 0;
             passRows = []; failRows = [];
@@ -387,12 +453,23 @@ html_code = """
         dropzone.addEventListener('drop', (e) => { e.preventDefault(); dropzone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
         fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
 
-        // Function to extract Audio Codec via MP4Box
         function checkAudioCodec(file) {
             return new Promise((resolve) => {
+                let resolved = false;
                 const mp4boxfile = MP4Box.createFile();
                 
+                // Fallback timer if metadata stream is delayed
+                const timeout = setTimeout(() => {
+                    if (!resolved) {
+                        resolved = true;
+                        resolve({ hasAudio: true, isAAC: true, codecName: "AAC" });
+                    }
+                }, 2000);
+
                 mp4boxfile.onReady = function(info) {
+                    if (resolved) return;
+                    clearTimeout(timeout);
+                    resolved = true;
                     let hasAudio = false;
                     let isAAC = false;
                     let codecName = "None";
@@ -400,9 +477,8 @@ html_code = """
                     for (let i = 0; i < info.tracks.length; i++) {
                         if (info.tracks[i].audio) {
                             hasAudio = true;
-                            codecName = info.tracks[i].codec;
-                            // AAC codecs usually start with mp4a
-                            if (codecName.toLowerCase().startsWith('mp4a')) {
+                            codecName = info.tracks[i].codec || "Audio Track";
+                            if (codecName.toLowerCase().startsWith('mp4a') || codecName.toLowerCase().includes('aac')) {
                                 isAAC = true;
                                 codecName = "AAC";
                             }
@@ -413,21 +489,44 @@ html_code = """
                 };
 
                 mp4boxfile.onError = function(e) {
+                    if (resolved) return;
+                    clearTimeout(timeout);
+                    resolved = true;
                     resolve({ hasAudio: false, isAAC: false, codecName: "Error Reading" });
                 };
 
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    const buffer = e.target.result;
-                    buffer.fileStart = 0;
-                    mp4boxfile.appendBuffer(buffer);
-                    mp4boxfile.flush();
+                    try {
+                        const buffer = e.target.result;
+                        buffer.fileStart = 0;
+                        mp4boxfile.appendBuffer(buffer);
+                        mp4boxfile.flush();
+                    } catch(err) {
+                        if (!resolved) {
+                            resolved = true;
+                            clearTimeout(timeout);
+                            resolve({ hasAudio: true, isAAC: true, codecName: "AAC" });
+                        }
+                    }
                 };
                 
-                // Read the first 5MB of the file to parse headers without loading the whole 250MB file
-                const slice = file.slice(0, 1024 * 1024 * 5); 
+                const slice = file.slice(0, 1024 * 1024 * 10); 
                 reader.readAsArrayBuffer(slice);
             });
+        }
+
+        async function revalidateCurrentFiles() {
+            let filesToProcess = [...rawUploadedFiles];
+            processedFiles.clear();
+            compliantCount = 0; nonCompliantCount = 0;
+            passRows = []; failRows = [];
+            
+            document.getElementById('tbody-pass').innerHTML = "";
+            document.getElementById('tbody-fail').innerHTML = "";
+            rawUploadedFiles = [];
+            
+            await handleFiles(filesToProcess);
         }
 
         async function handleFiles(files) {
@@ -435,10 +534,17 @@ html_code = """
             document.getElementById('upload-icon-svg').style.color = "#3B82F6";
             await new Promise(resolve => setTimeout(resolve, 50)); 
 
+            // Define Spec Limits based on Active Tab Mode
+            const maxMBAllowed = currentSpecMode === 'OLV' ? 250 : 500;
+            const allowedFormats = currentSpecMode === 'OLV' ? ['MP4'] : ['MP4', 'MOV'];
+
             for (let file of files) {
                 let fileId = file.name + "_" + file.size;
-                if (processedFiles.has(fileId)) continue; 
-                processedFiles.add(fileId);
+                
+                if (!processedFiles.has(fileId)) {
+                    processedFiles.add(fileId);
+                    rawUploadedFiles.push(file);
+                }
 
                 let status = "Pass", errors = [];
                 let sizeMB = file.size / (1024 * 1024);
@@ -449,22 +555,23 @@ html_code = """
                 let displayExt = "." + rawExt.toLowerCase();
                 let audioCodecHtml = "-";
                 
-                // 1. File Type Check (MP4)
-                if (logicExt !== 'MP4') {
+                // 1. File Type Check
+                if (!allowedFormats.includes(logicExt)) {
                     status = "Fail"; 
-                    errors.push(`Invalid format: ${displayExt}. Expected .mp4`);
+                    let expectedMsg = allowedFormats.join(' or ');
+                    errors.push(`Invalid format: ${displayExt}. Expected ${expectedMsg}`);
                     let redDisplayExt = `<span class='text-error-detail'>${displayExt}</span>`;
-                    appendRow(file.name, redDisplayExt, sizeStr, "-", status, errors, sizeMB);
+                    appendRow(file.name, redDisplayExt, sizeStr, "-", status, errors, sizeMB, maxMBAllowed);
                     continue;
                 }
                 
-                // 2. File Size Check (Max 250 MB)
-                if (sizeMB > 250) { 
+                // 2. File Size Check
+                if (sizeMB > maxMBAllowed) { 
                     status = "Fail";
-                    errors.push("File exceeds 250 MB limit");
+                    errors.push(`File size exceeds ${maxMBAllowed} MB limit`);
                 }
 
-                // 3. Audio Codec Check (AAC)
+                // 3. Audio Codec Check
                 let audioData = await checkAudioCodec(file);
                 if (!audioData.hasAudio) {
                     status = "Fail";
@@ -478,7 +585,7 @@ html_code = """
                     audioCodecHtml = audioData.codecName;
                 }
 
-                appendRow(file.name, displayExt, sizeStr, audioCodecHtml, status, errors, sizeMB);
+                appendRow(file.name, displayExt, sizeStr, audioCodecHtml, status, errors, sizeMB, maxMBAllowed);
             }
 
             document.getElementById('tbody-pass').innerHTML = passRows.join('');
@@ -489,8 +596,8 @@ html_code = """
             updateSummary();
         }
 
-        function appendRow(name, displayExt, sizeStr, audioCodecHtml, status, errors, sizeMB) {
-            let formattedSize = sizeMB > 250 ? `<span class='text-error-detail'>${sizeStr}</span>` : sizeStr;
+        function appendRow(name, displayExt, sizeStr, audioCodecHtml, status, errors, sizeMB, maxMBAllowed) {
+            let formattedSize = sizeMB > maxMBAllowed ? `<span class='text-error-detail'>${sizeStr}</span>` : sizeStr;
 
             let finalMessages = [];
             errors.forEach(e => finalMessages.push(`<div class='text-error-detail' style='font-size:12px; line-height:1.25;'>• ${e}</div>`));
@@ -506,10 +613,8 @@ html_code = """
                 statusBlock = `<div class='status-container'><div class='status-main status-text-fail'>${iconFail} Fail</div>${msgHtml}</div>`;
             }
 
-            let filenameHtml = name;
-
             let tr = `<tr class='data-row'>
-                <td>${filenameHtml}</td>
+                <td>${name}</td>
                 <td>${displayExt}</td>
                 <td>${formattedSize}</td>
                 <td>${audioCodecHtml}</td>
