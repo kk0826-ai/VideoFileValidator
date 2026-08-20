@@ -12,7 +12,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 2. Commercial-Grade HTML/JS Code with Deep Metadata Parsing
+# 2. Commercial-Grade HTML/JS Code with Isolated Workspaces
 html_code = """
 <!DOCTYPE html>
 <html lang="en">
@@ -345,7 +345,7 @@ html_code = """
         <div class="action-bar-container" id="action-bar">
             <button class="clear-btn" onclick="clearResults()">
                 <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                Clear All Results
+                Clear Current Results
             </button>
         </div>
 
@@ -357,14 +357,25 @@ html_code = """
     </div>
 
     <script>
-        let currentSpecMode = 'OLV'; // 'OLV' or 'CTV'
-        let rawUploadedFiles = []; 
-        let processedFiles = new Set();
-        let compliantCount = 0;
-        let nonCompliantCount = 0;
+        // Separate state management for the two tabs
+        const state = {
+            OLV: {
+                processedFiles: new Set(),
+                compliantCount: 0,
+                nonCompliantCount: 0,
+                passRows: [],
+                failRows: []
+            },
+            CTV: {
+                processedFiles: new Set(),
+                compliantCount: 0,
+                nonCompliantCount: 0,
+                passRows: [],
+                failRows: []
+            }
+        };
 
-        let passRows = [];
-        let failRows = [];
+        let currentSpecMode = 'OLV'; // 'OLV' or 'CTV'
 
         const iconPass = `<svg width="18" height="18" viewBox="0 0 24 24" fill="#22C55E" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11"/><path d="M8 12.5L10.5 15L16 9" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
         const iconFail = `<svg width="18" height="18" viewBox="0 0 24 24" fill="#DC2626" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11"/><path d="M15 9L9 15M9 9L15 15" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -408,9 +419,11 @@ html_code = """
             if (currentSpecMode === mode) return;
             currentSpecMode = mode;
             
+            // Toggle tab active class
             document.getElementById('tab-olv').classList.toggle('active', mode === 'OLV');
             document.getElementById('tab-ctv').classList.toggle('active', mode === 'CTV');
             
+            // Update Dropzone hints
             if (mode === 'OLV') {
                 document.getElementById('upload-sub-text').innerText = "or click to browse files (MP4 only, max 250MB)";
                 fileInput.accept = "video/mp4";
@@ -419,24 +432,27 @@ html_code = """
                 fileInput.accept = "video/mp4,video/quicktime,.mov";
             }
             
+            // Re-render headers and table with the target tab's existing state
             updateHeaders();
-            
-            if (rawUploadedFiles.length > 0) {
-                revalidateCurrentFiles();
-            }
+            renderCurrentState();
         }
 
-        function updateSummary() {
-            document.getElementById('count-pass').innerText = compliantCount;
-            document.getElementById('count-fail').innerText = nonCompliantCount;
+        function renderCurrentState() {
+            let activeState = state[currentSpecMode];
             
-            let total = compliantCount + nonCompliantCount;
+            document.getElementById('count-pass').innerText = activeState.compliantCount;
+            document.getElementById('count-fail').innerText = activeState.nonCompliantCount;
+            
+            document.getElementById('tbody-pass').innerHTML = activeState.passRows.join('');
+            document.getElementById('tbody-fail').innerHTML = activeState.failRows.join('');
+            
+            let total = activeState.compliantCount + activeState.nonCompliantCount;
             
             if (total > 0) {
                 document.getElementById('summary-dashboard').style.display = "grid";
                 document.getElementById('action-bar').style.display = "flex";
-                document.getElementById('wrapper-fail').style.display = nonCompliantCount > 0 ? "block" : "none";
-                document.getElementById('wrapper-pass').style.display = compliantCount > 0 ? "block" : "none";
+                document.getElementById('wrapper-fail').style.display = activeState.nonCompliantCount > 0 ? "block" : "none";
+                document.getElementById('wrapper-pass').style.display = activeState.compliantCount > 0 ? "block" : "none";
             } else {
                 document.getElementById('summary-dashboard').style.display = "none";
                 document.getElementById('action-bar').style.display = "none";
@@ -446,15 +462,17 @@ html_code = """
         }
 
         function clearResults() {
-            rawUploadedFiles = [];
-            processedFiles.clear();
-            compliantCount = 0; nonCompliantCount = 0;
-            passRows = []; failRows = [];
+            // ONLY clear the currently active tab's state
+            state[currentSpecMode] = {
+                processedFiles: new Set(),
+                compliantCount: 0,
+                nonCompliantCount: 0,
+                passRows: [],
+                failRows: []
+            };
             
-            document.getElementById('tbody-pass').innerHTML = "";
-            document.getElementById('tbody-fail').innerHTML = "";
             fileInput.value = ""; 
-            updateSummary();
+            renderCurrentState();
             
             try { document.getElementById('main-header').scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch(e) {}
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -557,34 +575,21 @@ html_code = """
             });
         }
 
-        async function revalidateCurrentFiles() {
-            let filesToProcess = [...rawUploadedFiles];
-            processedFiles.clear();
-            compliantCount = 0; nonCompliantCount = 0;
-            passRows = []; failRows = [];
-            
-            document.getElementById('tbody-pass').innerHTML = "";
-            document.getElementById('tbody-fail').innerHTML = "";
-            rawUploadedFiles = [];
-            
-            await handleFiles(filesToProcess);
-        }
-
         async function handleFiles(files) {
             document.getElementById('upload-main-text').innerText = "Processing videos (This may take a second)...";
             document.getElementById('upload-icon-svg').style.color = "#3B82F6";
             await new Promise(resolve => setTimeout(resolve, 50)); 
 
+            let activeState = state[currentSpecMode];
             const maxMBAllowed = currentSpecMode === 'OLV' ? 250 : 500;
             const allowedFormats = currentSpecMode === 'OLV' ? ['MP4'] : ['MP4', 'MOV'];
 
             for (let file of files) {
                 let fileId = file.name + "_" + file.size;
                 
-                if (!processedFiles.has(fileId)) {
-                    processedFiles.add(fileId);
-                    rawUploadedFiles.push(file);
-                }
+                // Prevent duplicate processing in the CURRENT tab
+                if (activeState.processedFiles.has(fileId)) continue;
+                activeState.processedFiles.add(fileId);
 
                 let status = "Pass", errors = [];
                 let sizeMB = file.size / (1024 * 1024);
@@ -601,7 +606,7 @@ html_code = """
                     let expectedMsg = allowedFormats.join(' or ');
                     errors.push(`Invalid format: ${displayExt}. Expected ${expectedMsg}`);
                     let redDisplayExt = `<span class='text-error-detail'>${displayExt}</span>`;
-                    appendRow(file.name, redDisplayExt, sizeStr, "-", "-", status, errors, sizeMB, maxMBAllowed);
+                    appendRowToState(file.name, redDisplayExt, sizeStr, "-", "-", status, errors, sizeMB, maxMBAllowed, activeState);
                     continue;
                 }
                 
@@ -686,18 +691,17 @@ html_code = """
                     }
                 }
 
-                appendRow(file.name, displayExt, sizeStr, audioCodecHtml, amazonSpecHtml, status, errors, sizeMB, maxMBAllowed);
+                appendRowToState(file.name, displayExt, sizeStr, audioCodecHtml, amazonSpecHtml, status, errors, sizeMB, maxMBAllowed, activeState);
             }
-
-            document.getElementById('tbody-pass').innerHTML = passRows.join('');
-            document.getElementById('tbody-fail').innerHTML = failRows.join('');
 
             document.getElementById('upload-main-text').innerText = "Drag & drop your video files here";
             document.getElementById('upload-icon-svg').style.color = "#64748B";
-            updateSummary();
+            
+            // Re-render the UI with the updated state
+            renderCurrentState();
         }
 
-        function appendRow(name, displayExt, sizeStr, audioCodecHtml, amazonSpecHtml, status, errors, sizeMB, maxMBAllowed) {
+        function appendRowToState(name, displayExt, sizeStr, audioCodecHtml, amazonSpecHtml, status, errors, sizeMB, maxMBAllowed, activeState) {
             let formattedSize = sizeMB > maxMBAllowed ? `<span class='text-error-detail'>${sizeStr}</span>` : sizeStr;
 
             let finalMessages = [];
@@ -707,10 +711,10 @@ html_code = """
             let statusBlock = "";
 
             if (status === "Pass") {
-                compliantCount++;
+                activeState.compliantCount++;
                 statusBlock = `<div class='status-container'><div class='status-main status-text-pass'>${iconPass} Pass</div></div>`;
             } else {
-                nonCompliantCount++;
+                activeState.nonCompliantCount++;
                 statusBlock = `<div class='status-container'><div class='status-main status-text-fail'>${iconFail} Fail</div>${msgHtml}</div>`;
             }
 
@@ -735,9 +739,9 @@ html_code = """
             }
 
             if (status === "Pass") {
-                passRows.push(rowHTML);
+                activeState.passRows.push(rowHTML);
             } else {
-                failRows.push(rowHTML);
+                activeState.failRows.push(rowHTML);
             }
         }
     </script>
