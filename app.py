@@ -655,7 +655,7 @@ html_code = """
                         }
                     }
 
-                    // NEW FRAME RATE LOGIC: Exact 23.98 handling & Accepted formats
+                    // FIXED FRAME RATE LOGIC:
                     if (vMeta.fps > 0) {
                         let fps = vMeta.fps;
                         
@@ -663,16 +663,13 @@ html_code = """
                         let is24 = Math.abs(fps - 24) <= 0.1;
                         let is25 = Math.abs(fps - 25) <= 0.1;
                         let is29_97 = Math.abs(fps - 29.97) <= 0.1;
+                        let is30 = Math.abs(fps - 30) <= 0.1;
                         
-                        // Round near-23.976 neatly to 23.98 for UI
-                        let displayFps = is23_98 ? "23.98" : fps.toFixed(2);
-
-                        if (!is23_98 && !is24 && !is25 && !is29_97) {
-                            errors.push(`Frame rate: ${displayFps} fps (Accepted: 23.98, 24, 25, 29.97)`);
-                        } else if (!is23_98) {
-                            // If it's valid (24, 25, 29.97) but not the recommended 23.98
-                            warnings.push(`Frame rate: ${displayFps} fps (23.98 fps recommended)`);
+                        // Check if it is completely outside the standard buckets
+                        if (!is23_98 && !is24 && !is25 && !is29_97 && !is30) {
+                            errors.push(`Frame rate: ${fps.toFixed(2)} fps (Standard: 23.98, 24, 25, 29.97, 30)`);
                         }
+                        // If it IS in the bucket (e.g. 25 or 24), we do nothing. It passes without any warning!
                     }
                 }
 
