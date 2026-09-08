@@ -12,7 +12,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 2. Commercial-Grade HTML/JS Code (Hybrid Amazon + General CTV Logic)
+# 2. Commercial-Grade HTML/JS Code 
 html_code = """
 <!DOCTYPE html>
 <html lang="en">
@@ -240,7 +240,7 @@ html_code = """
 
         .text-error-detail { color: #DC2626; font-weight: 400; }
         .text-warning-detail { color: #F59E0B; font-weight: 400; }
-        .text-amazon-detail { color: #3B82F6; font-weight: 500; } /* Blue for Amazon Specifics */
+        .text-amazon-detail { color: #3B82F6; font-weight: 500; }
         
         /* App Footer Styling */
         .app-footer {
@@ -360,32 +360,18 @@ html_code = """
     </div>
 
     <script>
-        // Separate state management for the two tabs
         const state = {
-            OLV: {
-                processedFiles: new Set(),
-                compliantCount: 0,
-                nonCompliantCount: 0,
-                passRows: [],
-                failRows: []
-            },
-            CTV: {
-                processedFiles: new Set(),
-                compliantCount: 0,
-                nonCompliantCount: 0,
-                passRows: [],
-                failRows: []
-            }
+            OLV: { processedFiles: new Set(), compliantCount: 0, nonCompliantCount: 0, passRows: [], failRows: [] },
+            CTV: { processedFiles: new Set(), compliantCount: 0, nonCompliantCount: 0, passRows: [], failRows: [] }
         };
 
-        let currentSpecMode = 'OLV'; // 'OLV' or 'CTV'
+        let currentSpecMode = 'OLV'; 
 
         const iconPass = `<svg width="18" height="18" viewBox="0 0 24 24" fill="#22C55E" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11"/><path d="M8 12.5L10.5 15L16 9" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
         const iconWarning = `<svg width="18" height="18" viewBox="0 0 24 24" fill="#F59E0B" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11"/><path d="M12 7V13M12 17H12.01" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
         const iconFail = `<svg width="18" height="18" viewBox="0 0 24 24" fill="#DC2626" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11"/><path d="M15 9L9 15M9 9L15 15" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
         function getHeaderHTML() {
-            // Unify table headers for both modes (5 columns)
             return `
                 <tr>
                     <th style="width: 32%;"><div class="th-content"><svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg> FILE NAME</div></th>
@@ -411,11 +397,9 @@ html_code = """
             if (currentSpecMode === mode) return;
             currentSpecMode = mode;
             
-            // Toggle tab active class
             document.getElementById('tab-olv').classList.toggle('active', mode === 'OLV');
             document.getElementById('tab-ctv').classList.toggle('active', mode === 'CTV');
             
-            // Update Dropzone limits and format hints
             if (mode === 'OLV') {
                 document.getElementById('upload-sub-text').innerText = "or click to browse files (MP4 only, max 250MB)";
                 fileInput.accept = "video/mp4";
@@ -424,7 +408,6 @@ html_code = """
                 fileInput.accept = "video/mp4,video/quicktime,.mov";
             }
             
-            // Re-render headers and table with the target tab's existing state
             updateHeaders();
             renderCurrentState();
         }
@@ -454,18 +437,9 @@ html_code = """
         }
 
         function clearResults() {
-            // ONLY clear the currently active tab's state
-            state[currentSpecMode] = {
-                processedFiles: new Set(),
-                compliantCount: 0,
-                nonCompliantCount: 0,
-                passRows: [],
-                failRows: []
-            };
-            
+            state[currentSpecMode] = { processedFiles: new Set(), compliantCount: 0, nonCompliantCount: 0, passRows: [], failRows: [] };
             fileInput.value = ""; 
             renderCurrentState();
-            
             try { document.getElementById('main-header').scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch(e) {}
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
@@ -533,8 +507,11 @@ html_code = """
                             metadataResult.height = track.video.height || 0;
                             metadataResult.videoBitrate = track.bitrate || 0;
                             
-                            if (fileDurationSecs > 0) {
-                                metadataResult.fps = track.nb_samples / fileDurationSecs;
+                            let trackDurationSecs = track.duration / track.timescale;
+                            if (trackDurationSecs > 0) {
+                                metadataResult.fps = track.nb_samples / trackDurationSecs;
+                            } else if (fileDurationSecs > 0) {
+                                metadataResult.fps = track.nb_samples / fileDurationSecs; 
                             }
                         }
                     }
@@ -576,20 +553,17 @@ html_code = """
 
             let activeState = state[currentSpecMode];
             const maxMBAllowed = currentSpecMode === 'OLV' ? 250 : 500;
-            // OLV is MP4 only. CTV allows MP4 and MOV
             const allowedFormats = currentSpecMode === 'OLV' ? ['MP4'] : ['MP4', 'MOV'];
 
             for (let file of files) {
                 let fileId = file.name + "_" + file.size;
-                
-                // Prevent duplicate processing in the CURRENT tab
                 if (activeState.processedFiles.has(fileId)) continue;
                 activeState.processedFiles.add(fileId);
 
                 let status = "Pass";
                 let errors = [];
                 let warnings = [];
-                let amazonWarnings = []; // Blue tags for Amazon limits
+                let amazonWarnings = []; 
                 
                 let sizeMB = file.size / (1024 * 1024);
                 let sizeStr = sizeMB.toFixed(2) + " MB";
@@ -599,7 +573,6 @@ html_code = """
                 let displayExt = "." + rawExt.toLowerCase();
                 let audioCodecHtml = "-";
                 
-                // 1. File Type Check
                 if (!allowedFormats.includes(logicExt)) {
                     status = "Fail"; 
                     let expectedMsg = allowedFormats.join(' or ');
@@ -609,18 +582,15 @@ html_code = """
                     continue;
                 }
                 
-                // Track Amazon's File Type Strictness
                 if (currentSpecMode === 'CTV' && logicExt === 'MOV') {
                     amazonWarnings.push("Amazon strictly requires MP4");
                 }
                 
-                // 2. File Size Check
                 if (sizeMB > maxMBAllowed) { 
                     status = "Fail";
                     errors.push(`File size exceeds ${maxMBAllowed} MB limit`);
                 }
 
-                // 3. Extract Metadata
                 let vMeta = await checkVideoMetadata(file);
                 
                 if (!vMeta.hasAudio) {
@@ -635,29 +605,21 @@ html_code = """
                     audioCodecHtml = vMeta.codecName;
                 }
 
-                // 4. Specific Checks based on Mode
                 if (currentSpecMode === 'CTV') {
-                    
-                    // --- AUDIO CHECKS ---
-                    // MiQ allows 48 kHz
                     if (vMeta.sampleRate > 0 && Math.abs(vMeta.sampleRate - 48000) > 100) {
                         errors.push(`Sample rate: ${(vMeta.sampleRate/1000).toFixed(2)} kHz (48 kHz required)`);
                     }
 
-                    // Audio Bitrate min 192 kbps
                     let bitrateKbps = vMeta.audioBitrate / 1000;
                     if (bitrateKbps > 0 && bitrateKbps < 192) {
                         errors.push(`Audio bitrate: ${bitrateKbps.toFixed(0)} Kbps (Min 192 Kbps required)`);
                     }
 
-                    // --- VIDEO CHECKS ---
-                    // Codec H.264
                     let vCodec = vMeta.videoCodec.toLowerCase();
                     if (!vCodec.includes('avc1') && !vCodec.includes('h264') && vCodec !== "none") {
                         errors.push(`Video codec: ${vMeta.videoCodec} (H.264 required)`);
                     }
                     
-                    // General MiQ Video Bitrate (4 to 50, recommends 20)
                     let videoBitrateMbps = vMeta.videoBitrate / 1000000;
                     if (videoBitrateMbps > 0) {
                         if (videoBitrateMbps < 4 || videoBitrateMbps > 50) {
@@ -666,31 +628,26 @@ html_code = """
                             warnings.push(`Video bitrate: ${videoBitrateMbps.toFixed(1)} Mbps (20 Mbps recommended)`);
                         }
                         
-                        // Amazon Strict Check: Requires Min 15 Mbps
                         if (videoBitrateMbps < 15) {
                             amazonWarnings.push(`Amazon requires min 15 Mbps`);
                         }
                     }
 
-                    // Dimensions
                     if (vMeta.width > 0 && vMeta.height > 0) {
                         let isFHDLandscape = (vMeta.width === 1920 && vMeta.height === 1080);
                         let isFHDPotrait = (vMeta.width === 1080 && vMeta.height === 1920);
                         
-                        // General MiQ Dim checks
                         if ((vMeta.width < 1280 || vMeta.height < 720) && (vMeta.width < 720 || vMeta.height < 1280)) {
                             errors.push(`Dimensions: ${vMeta.width}x${vMeta.height} (Min 1280x720 required)`);
                         } else if (!isFHDLandscape && !isFHDPotrait) {
                             warnings.push(`Dimensions: ${vMeta.width}x${vMeta.height} (1920x1080 recommended)`);
                         }
                         
-                        // Amazon Strict Check: ONLY 1920x1080 or 1080x1920
                         if (!isFHDLandscape && !isFHDPotrait) {
                             amazonWarnings.push(`Amazon requires exactly 1920x1080 or 1080x1920`);
                         }
                     }
 
-                    // Length / Duration (15 or 30 sec recommended)
                     if (vMeta.durationSecs > 0) {
                         let durRound = Math.round(vMeta.durationSecs);
                         if (durRound !== 15 && durRound !== 30) {
@@ -698,19 +655,31 @@ html_code = """
                         }
                     }
 
-                    // Frame rate (23.98 recommended)
+                    // NEW FRAME RATE LOGIC: Exact 23.98 handling & Accepted formats
                     if (vMeta.fps > 0) {
-                        if (Math.abs(vMeta.fps - 23.976) > 0.5) {
-                            warnings.push(`Frame rate: ${vMeta.fps.toFixed(2)} fps (23.98 fps recommended)`);
+                        let fps = vMeta.fps;
+                        
+                        let is23_98 = Math.abs(fps - 23.976) <= 0.1 || Math.abs(fps - 23.98) <= 0.1;
+                        let is24 = Math.abs(fps - 24) <= 0.1;
+                        let is25 = Math.abs(fps - 25) <= 0.1;
+                        let is29_97 = Math.abs(fps - 29.97) <= 0.1;
+                        
+                        // Round near-23.976 neatly to 23.98 for UI
+                        let displayFps = is23_98 ? "23.98" : fps.toFixed(2);
+
+                        if (!is23_98 && !is24 && !is25 && !is29_97) {
+                            errors.push(`Frame rate: ${displayFps} fps (Accepted: 23.98, 24, 25, 29.97)`);
+                        } else if (!is23_98) {
+                            // If it's valid (24, 25, 29.97) but not the recommended 23.98
+                            warnings.push(`Frame rate: ${displayFps} fps (23.98 fps recommended)`);
                         }
                     }
                 }
 
-                // Determine Status Based on Rule Priority
                 if (errors.length > 0) {
                     status = "Fail";
                 } else if (warnings.length > 0 || amazonWarnings.length > 0) {
-                    status = "Review"; // Goes to review bucket if it misses a rec OR fails Amazon
+                    status = "Review"; 
                 } else {
                     status = "Pass";
                 }
@@ -728,13 +697,8 @@ html_code = """
             let formattedSize = sizeMB > maxMBAllowed ? `<span class='text-error-detail'>${sizeStr}</span>` : sizeStr;
 
             let finalMessages = [];
-            // Push critical errors in RED
             errors.forEach(e => finalMessages.push(`<div class='text-error-detail' style='font-size:12px; line-height:1.25;'>• ${e}</div>`));
-            
-            // Push soft warnings in YELLOW
             warnings.forEach(w => finalMessages.push(`<div class='text-warning-detail' style='font-size:12px; line-height:1.25;'>• ${w}</div>`));
-            
-            // Push Amazon Strict alerts in BLUE
             amazonWarnings.forEach(aw => finalMessages.push(`<div class='text-amazon-detail' style='font-size:12px; line-height:1.25;'>• [Amazon Check] ${aw}</div>`));
             
             let msgHtml = finalMessages.join("");
