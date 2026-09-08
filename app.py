@@ -12,7 +12,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 2. Commercial-Grade HTML/JS Code 
+# 2. Commercial-Grade HTML/JS Code
 html_code = """
 <!DOCTYPE html>
 <html lang="en">
@@ -455,15 +455,16 @@ html_code = """
                 const mp4boxfile = MP4Box.createFile();
                 
                 let metadataResult = {
+                    parseFailed: false,
                     hasAudio: false,
                     isAAC: false,
-                    codecName: "None",
+                    codecName: "Unknown",
                     sampleRate: 0,
                     audioBitrate: 0,
                     audioChannels: 0,
                     audioStreamCount: 0,
                     videoStreamCount: 0,
-                    videoCodec: "None",
+                    videoCodec: "Unknown",
                     videoBitrate: 0,
                     fps: 0,
                     width: 0,
@@ -474,6 +475,7 @@ html_code = """
                 const timeout = setTimeout(() => {
                     if (!resolved) {
                         resolved = true;
+                        metadataResult.parseFailed = true;
                         resolve(metadataResult); 
                     }
                 }, 10000); 
@@ -491,7 +493,8 @@ html_code = """
                         if (track.audio) {
                             metadataResult.audioStreamCount++;
                             metadataResult.hasAudio = true;
-                            metadataResult.codecName = track.codec || "AAC";
+                            // QA FIX 2: Default to "Unknown" rather than passing blindly as AAC
+                            metadataResult.codecName = track.codec || "Unknown";
                             if (metadataResult.codecName.toLowerCase().startsWith('mp4a') || metadataResult.codecName.toLowerCase().includes('aac')) {
                                 metadataResult.isAAC = true;
                                 metadataResult.codecName = "AAC";
@@ -502,7 +505,7 @@ html_code = """
                         }
                         if (track.video) {
                             metadataResult.videoStreamCount++;
-                            metadataResult.videoCodec = track.codec || "None";
+                            metadataResult.videoCodec = track.codec || "Unknown";
                             metadataResult.width = track.video.width || 0;
                             metadataResult.height = track.video.height || 0;
                             metadataResult.videoBitrate = track.bitrate || 0;
@@ -522,6 +525,7 @@ html_code = """
                     if (resolved) return;
                     clearTimeout(timeout);
                     resolved = true;
+                    metadataResult.parseFailed = true;
                     resolve(metadataResult);
                 };
 
@@ -549,6 +553,7 @@ html_code = """
                             if (!resolved) {
                                 resolved = true;
                                 clearTimeout(timeout);
+                                metadataResult.parseFailed = true;
                                 resolve(metadataResult);
                             }
                         }
@@ -607,6 +612,15 @@ html_code = """
 
                 let vMeta = await checkVideoMetadata(file);
                 
+                // QA FIX 1: If parsing totally fails (usually on .mov files)
+                if (vMeta.parseFailed) {
+                    status = "Review";
+                    audioCodecHtml = `<span class='text-warning-detail'>Unreadable</span>`;
+                    warnings.push(`Deep metadata unreadable in browser (Often happens with .MOV files). Please verify specs manually.`);
+                    appendRowToState(file.name, displayExt, sizeStr, audioCodecHtml, status, errors, warnings, amazonWarnings, sizeMB, maxMBAllowed, activeState);
+                    continue;
+                }
+
                 if (!vMeta.hasAudio) {
                     status = "Fail";
                     audioCodecHtml = `<span class='text-error-detail'>No Audio</span>`;
@@ -624,13 +638,16 @@ html_code = """
                         errors.push(`Sample rate: ${(vMeta.sampleRate/1000).toFixed(2)} kHz (48 kHz required)`);
                     }
 
+                    // QA FIX 3: Catch 0 bitrate bugs
                     let bitrateKbps = vMeta.audioBitrate / 1000;
                     if (bitrateKbps > 0 && bitrateKbps < 192) {
                         errors.push(`Audio bitrate: ${bitrateKbps.toFixed(0)} Kbps (Min 192 Kbps required)`);
+                    } else if (bitrateKbps === 0) {
+                        warnings.push(`Audio bitrate could not be extracted automatically`);
                     }
 
                     let vCodec = vMeta.videoCodec.toLowerCase();
-                    if (!vCodec.includes('avc1') && !vCodec.includes('h264') && vCodec !== "none") {
+                    if (!vCodec.includes('avc1') && !vCodec.includes('h264') && vCodec !== "none" && vCodec !== "unknown") {
                         errors.push(`Video codec: ${vMeta.videoCodec} (H.264 required)`);
                     }
                     
@@ -645,6 +662,8 @@ html_code = """
                         if (videoBitrateMbps < 15) {
                             amazonWarnings.push(`Amazon requires min 15 Mbps`);
                         }
+                    } else {
+                        warnings.push(`Video bitrate could not be extracted automatically`);
                     }
 
                     if (vMeta.width > 0 && vMeta.height > 0) {
@@ -669,13 +688,11 @@ html_code = """
                         }
                     }
 
-                    // RANGE CHECK: Anywhere between 23.976 and 29.97 is a PASS. 
                     if (vMeta.fps > 0) {
                         let fps = vMeta.fps;
                         let is23_98 = Math.abs(fps - 23.976) <= 0.05 || Math.abs(fps - 23.98) <= 0.05;
                         let displayFps = is23_98 ? "23.98" : fps.toFixed(2);
 
-                        // If it's outside the ~23.97 to ~29.98 range, flag it as an error.
                         if (fps < 23.95 || fps > 29.99) {
                             errors.push(`Frame rate: ${displayFps} fps (Must be between 23.976 and 29.97)`);
                         }
@@ -699,6 +716,7 @@ html_code = """
             renderCurrentState();
         }
 
+        // QA FIX 4: Simplified row appending
         function appendRowToState(name, displayExt, sizeStr, audioCodecHtml, status, errors, warnings, amazonWarnings, sizeMB, maxMBAllowed, activeState) {
             let formattedSize = sizeMB > maxMBAllowed ? `<span class='text-error-detail'>${sizeStr}</span>` : sizeStr;
 
