@@ -476,7 +476,7 @@ html_code = """
                         resolved = true;
                         resolve(metadataResult); 
                     }
-                }, 10000); // 10 second timeout for deep chunk reading
+                }, 10000); 
 
                 mp4boxfile.onReady = function(info) {
                     if (resolved) return;
@@ -525,9 +525,8 @@ html_code = """
                     resolve(metadataResult);
                 };
 
-                // Smart Chunk Reader (Prevents missing moov atom at the end of the file)
                 let offset = 0;
-                const CHUNK_SIZE = 1024 * 1024 * 10; // Read in 10MB chunks
+                const CHUNK_SIZE = 1024 * 1024 * 10; 
                 
                 function readNextChunk() {
                     if (resolved) return;
@@ -670,22 +669,15 @@ html_code = """
                         }
                     }
 
+                    // RANGE CHECK: Anywhere between 23.976 and 29.97 is a PASS. 
                     if (vMeta.fps > 0) {
                         let fps = vMeta.fps;
-                        
-                        let is23_98 = Math.abs(fps - 23.976) <= 0.1 || Math.abs(fps - 23.98) <= 0.1;
-                        let is24 = Math.abs(fps - 24) <= 0.1;
-                        let is25 = Math.abs(fps - 25) <= 0.1;
-                        let is29_97 = Math.abs(fps - 29.97) <= 0.1;
-                        let is30 = Math.abs(fps - 30) <= 0.1;
-                        
+                        let is23_98 = Math.abs(fps - 23.976) <= 0.05 || Math.abs(fps - 23.98) <= 0.05;
                         let displayFps = is23_98 ? "23.98" : fps.toFixed(2);
 
-                        if (!is23_98 && !is24 && !is25 && !is29_97 && !is30) {
-                            errors.push(`Frame rate: ${displayFps} fps (Accepted: 23.98, 24, 25, 29.97, 30)`);
-                        } else if (!is23_98) {
-                            // If it's valid (24, 25, 29.97) but not the recommended 23.98
-                            warnings.push(`Frame rate: ${displayFps} fps (23.98 fps recommended)`);
+                        // If it's outside the ~23.97 to ~29.98 range, flag it as an error.
+                        if (fps < 23.95 || fps > 29.99) {
+                            errors.push(`Frame rate: ${displayFps} fps (Must be between 23.976 and 29.97)`);
                         }
                     }
                 }
