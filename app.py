@@ -12,7 +12,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 2. Commercial-Grade HTML/JS Code with Isolated Workspaces
+# 2. Commercial-Grade HTML/JS Code (Hybrid Amazon + General CTV Logic)
 html_code = """
 <!DOCTYPE html>
 <html lang="en">
@@ -235,9 +235,12 @@ html_code = """
         .status-main { display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 400; font-size: 13px; }
         
         .status-text-pass { color: #22C55E; }
+        .status-text-review { color: #F59E0B; } 
         .status-text-fail { color: #DC2626; }    
 
         .text-error-detail { color: #DC2626; font-weight: 400; }
+        .text-warning-detail { color: #F59E0B; font-weight: 400; }
+        .text-amazon-detail { color: #3B82F6; font-weight: 500; } /* Blue for Amazon Specifics */
         
         /* App Footer Styling */
         .app-footer {
@@ -286,14 +289,14 @@ html_code = """
                 <div class="summary-value" style="color: #22C55E;" id="count-pass">0</div>
                 <div class="summary-label">
                     <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" class="val-pass"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    Compliant
+                    Passed
                 </div>
             </div>
             <div class="summary-card">
                 <div class="summary-value" style="color: #EF4444;" id="count-fail">0</div>
                 <div class="summary-label">
                     <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" class="val-fail"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    Non-Compliant
+                    Issues Found
                 </div>
             </div>
         </div>
@@ -315,7 +318,7 @@ html_code = """
                         <line x1="12" y1="9" x2="12" y2="13"></line>
                         <line x1="12" y1="17" x2="12.01" y2="17"></line>
                     </svg> 
-                    Non-Compliant
+                    Review Needed
                 </div>
             </div>
             <div class="table-container">
@@ -378,31 +381,20 @@ html_code = """
         let currentSpecMode = 'OLV'; // 'OLV' or 'CTV'
 
         const iconPass = `<svg width="18" height="18" viewBox="0 0 24 24" fill="#22C55E" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11"/><path d="M8 12.5L10.5 15L16 9" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+        const iconWarning = `<svg width="18" height="18" viewBox="0 0 24 24" fill="#F59E0B" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11"/><path d="M12 7V13M12 17H12.01" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
         const iconFail = `<svg width="18" height="18" viewBox="0 0 24 24" fill="#DC2626" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="11"/><path d="M15 9L9 15M9 9L15 15" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
         function getHeaderHTML() {
-            if (currentSpecMode === 'OLV') {
-                return `
-                    <tr>
-                        <th style="width: 32%;"><div class="th-content"><svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg> FILE NAME</div></th>
-                        <th style="width: 15%;"><div class="th-content"><svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/></svg> FILE TYPE</div></th>
-                        <th style="width: 15%;"><div class="th-content"><svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zM5 15h14v3H5z"/></svg> SIZE</div></th>
-                        <th style="width: 18%;"><div class="th-content"><svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg> AUDIO CODEC</div></th>
-                        <th style="width: 20%;"><div class="th-content"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg> STATUS</div></th>
-                    </tr>
-                `;
-            } else {
-                return `
-                    <tr>
-                        <th style="width: 25%;"><div class="th-content"><svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg> FILE NAME</div></th>
-                        <th style="width: 13%;"><div class="th-content"><svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/></svg> FILE TYPE</div></th>
-                        <th style="width: 12%;"><div class="th-content"><svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zM5 15h14v3H5z"/></svg> SIZE</div></th>
-                        <th style="width: 15%;"><div class="th-content"><svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg> AUDIO CODEC</div></th>
-                        <th style="width: 22%;"><div class="th-content"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg> AMAZON CTV SPECS</div></th>
-                        <th style="width: 13%;"><div class="th-content"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg> STATUS</div></th>
-                    </tr>
-                `;
-            }
+            // Unify table headers for both modes (5 columns)
+            return `
+                <tr>
+                    <th style="width: 32%;"><div class="th-content"><svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg> FILE NAME</div></th>
+                    <th style="width: 15%;"><div class="th-content"><svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/></svg> FILE TYPE</div></th>
+                    <th style="width: 15%;"><div class="th-content"><svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zM5 15h14v3H5z"/></svg> SIZE</div></th>
+                    <th style="width: 18%;"><div class="th-content"><svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg> AUDIO CODEC</div></th>
+                    <th style="width: 20%;"><div class="th-content"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg> STATUS</div></th>
+                </tr>
+            `;
         }
 
         function updateHeaders() {
@@ -423,7 +415,7 @@ html_code = """
             document.getElementById('tab-olv').classList.toggle('active', mode === 'OLV');
             document.getElementById('tab-ctv').classList.toggle('active', mode === 'CTV');
             
-            // Update Dropzone hints
+            // Update Dropzone limits and format hints
             if (mode === 'OLV') {
                 document.getElementById('upload-sub-text').innerText = "or click to browse files (MP4 only, max 250MB)";
                 fileInput.accept = "video/mp4";
@@ -501,13 +493,14 @@ html_code = """
                     videoBitrate: 0,
                     fps: 0,
                     width: 0,
-                    height: 0
+                    height: 0,
+                    durationSecs: 0
                 };
 
                 const timeout = setTimeout(() => {
                     if (!resolved) {
                         resolved = true;
-                        resolve(metadataResult); // Returns default/failed if timeout
+                        resolve(metadataResult); 
                     }
                 }, 3000);
 
@@ -517,6 +510,7 @@ html_code = """
                     resolved = true;
                     
                     let fileDurationSecs = info.duration / info.timescale;
+                    metadataResult.durationSecs = fileDurationSecs;
 
                     for (let i = 0; i < info.tracks.length; i++) {
                         let track = info.tracks[i];
@@ -582,6 +576,7 @@ html_code = """
 
             let activeState = state[currentSpecMode];
             const maxMBAllowed = currentSpecMode === 'OLV' ? 250 : 500;
+            // OLV is MP4 only. CTV allows MP4 and MOV
             const allowedFormats = currentSpecMode === 'OLV' ? ['MP4'] : ['MP4', 'MOV'];
 
             for (let file of files) {
@@ -591,7 +586,11 @@ html_code = """
                 if (activeState.processedFiles.has(fileId)) continue;
                 activeState.processedFiles.add(fileId);
 
-                let status = "Pass", errors = [];
+                let status = "Pass";
+                let errors = [];
+                let warnings = [];
+                let amazonWarnings = []; // Blue tags for Amazon limits
+                
                 let sizeMB = file.size / (1024 * 1024);
                 let sizeStr = sizeMB.toFixed(2) + " MB";
                 
@@ -599,22 +598,29 @@ html_code = """
                 let logicExt = rawExt.toUpperCase();
                 let displayExt = "." + rawExt.toLowerCase();
                 let audioCodecHtml = "-";
-                let amazonSpecHtml = "-";
                 
+                // 1. File Type Check
                 if (!allowedFormats.includes(logicExt)) {
                     status = "Fail"; 
                     let expectedMsg = allowedFormats.join(' or ');
                     errors.push(`Invalid format: ${displayExt}. Expected ${expectedMsg}`);
                     let redDisplayExt = `<span class='text-error-detail'>${displayExt}</span>`;
-                    appendRowToState(file.name, redDisplayExt, sizeStr, "-", "-", status, errors, sizeMB, maxMBAllowed, activeState);
+                    appendRowToState(file.name, redDisplayExt, sizeStr, "-", status, errors, warnings, amazonWarnings, sizeMB, maxMBAllowed, activeState);
                     continue;
                 }
                 
+                // Track Amazon's File Type Strictness
+                if (currentSpecMode === 'CTV' && logicExt === 'MOV') {
+                    amazonWarnings.push("Amazon strictly requires MP4");
+                }
+                
+                // 2. File Size Check
                 if (sizeMB > maxMBAllowed) { 
                     status = "Fail";
                     errors.push(`File size exceeds ${maxMBAllowed} MB limit`);
                 }
 
+                // 3. Extract Metadata
                 let vMeta = await checkVideoMetadata(file);
                 
                 if (!vMeta.hasAudio) {
@@ -629,114 +635,129 @@ html_code = """
                     audioCodecHtml = vMeta.codecName;
                 }
 
-                // Amazon CTV Specific Forensic Checks
+                // 4. Specific Checks based on Mode
                 if (currentSpecMode === 'CTV') {
-                    let amazonErrors = [];
                     
-                    if (vMeta.videoStreamCount !== 1) amazonErrors.push(`Found ${vMeta.videoStreamCount} video streams (Expected 1)`);
-                    if (vMeta.audioStreamCount !== 1) amazonErrors.push(`Found ${vMeta.audioStreamCount} audio streams (Expected 1)`);
-                    
-                    if (vMeta.audioChannels !== 2 && vMeta.audioChannels > 0) amazonErrors.push(`Audio channels: ${vMeta.audioChannels} (Expected 2/Stereo)`);
-                    
-                    // Allow 44.1 kHz OR 48 kHz
-                    if (vMeta.sampleRate > 0) {
-                        let is44k = Math.abs(vMeta.sampleRate - 44100) < 100;
-                        let is48k = Math.abs(vMeta.sampleRate - 48000) < 100;
-                        if (!is44k && !is48k) {
-                            amazonErrors.push(`Sample rate: ${(vMeta.sampleRate/1000).toFixed(2)} kHz (Expected 44.1 or 48 kHz)`);
-                        }
+                    // --- AUDIO CHECKS ---
+                    // MiQ allows 48 kHz
+                    if (vMeta.sampleRate > 0 && Math.abs(vMeta.sampleRate - 48000) > 100) {
+                        errors.push(`Sample rate: ${(vMeta.sampleRate/1000).toFixed(2)} kHz (48 kHz required)`);
                     }
 
+                    // Audio Bitrate min 192 kbps
                     let bitrateKbps = vMeta.audioBitrate / 1000;
-                    if (bitrateKbps > 0 && bitrateKbps < 192) amazonErrors.push(`Audio bitrate: ${bitrateKbps.toFixed(0)} Kbps (Expected min 192 Kbps)`);
+                    if (bitrateKbps > 0 && bitrateKbps < 192) {
+                        errors.push(`Audio bitrate: ${bitrateKbps.toFixed(0)} Kbps (Min 192 Kbps required)`);
+                    }
 
+                    // --- VIDEO CHECKS ---
+                    // Codec H.264
                     let vCodec = vMeta.videoCodec.toLowerCase();
                     if (!vCodec.includes('avc1') && !vCodec.includes('h264') && vCodec !== "none") {
-                        amazonErrors.push(`Video codec: ${vMeta.videoCodec} (Expected H.264/avc1)`);
+                        errors.push(`Video codec: ${vMeta.videoCodec} (H.264 required)`);
                     }
                     
+                    // General MiQ Video Bitrate (4 to 50, recommends 20)
                     let videoBitrateMbps = vMeta.videoBitrate / 1000000;
-                    if (videoBitrateMbps > 0 && videoBitrateMbps < 15) amazonErrors.push(`Video bitrate: ${videoBitrateMbps.toFixed(1)} Mbps (Expected min 15 Mbps)`);
-
-                    // Check for 1920x1080 OR 1080x1920
-                    if (vMeta.width > 0 && vMeta.height > 0) {
-                        let aspectRatio = vMeta.width / vMeta.height;
-                        let is16x9 = Math.abs(aspectRatio - (16/9)) <= 0.05;
-                        let is9x16 = Math.abs(aspectRatio - (9/16)) <= 0.05;
+                    if (videoBitrateMbps > 0) {
+                        if (videoBitrateMbps < 4 || videoBitrateMbps > 50) {
+                            errors.push(`Video bitrate: ${videoBitrateMbps.toFixed(1)} Mbps (Must be 4 - 50 Mbps)`);
+                        } else if (videoBitrateMbps < 20) {
+                            warnings.push(`Video bitrate: ${videoBitrateMbps.toFixed(1)} Mbps (20 Mbps recommended)`);
+                        }
                         
-                        if (!is16x9 && !is9x16) {
-                            amazonErrors.push(`Aspect ratio is ${(aspectRatio).toFixed(2)} (Expected 16:9 or 9:16)`);
-                        }
-
-                        if ((is16x9 && (vMeta.width < 1920 || vMeta.height < 1080)) || 
-                            (is9x16 && (vMeta.width < 1080 || vMeta.height < 1920))) {
-                            amazonErrors.push(`Resolution: ${vMeta.width}x${vMeta.height} (Expected 1920x1080 or 1080x1920)`);
+                        // Amazon Strict Check: Requires Min 15 Mbps
+                        if (videoBitrateMbps < 15) {
+                            amazonWarnings.push(`Amazon requires min 15 Mbps`);
                         }
                     }
 
+                    // Dimensions
+                    if (vMeta.width > 0 && vMeta.height > 0) {
+                        let isFHDLandscape = (vMeta.width === 1920 && vMeta.height === 1080);
+                        let isFHDPotrait = (vMeta.width === 1080 && vMeta.height === 1920);
+                        
+                        // General MiQ Dim checks
+                        if ((vMeta.width < 1280 || vMeta.height < 720) && (vMeta.width < 720 || vMeta.height < 1280)) {
+                            errors.push(`Dimensions: ${vMeta.width}x${vMeta.height} (Min 1280x720 required)`);
+                        } else if (!isFHDLandscape && !isFHDPotrait) {
+                            warnings.push(`Dimensions: ${vMeta.width}x${vMeta.height} (1920x1080 recommended)`);
+                        }
+                        
+                        // Amazon Strict Check: ONLY 1920x1080 or 1080x1920
+                        if (!isFHDLandscape && !isFHDPotrait) {
+                            amazonWarnings.push(`Amazon requires exactly 1920x1080 or 1080x1920`);
+                        }
+                    }
+
+                    // Length / Duration (15 or 30 sec recommended)
+                    if (vMeta.durationSecs > 0) {
+                        let durRound = Math.round(vMeta.durationSecs);
+                        if (durRound !== 15 && durRound !== 30) {
+                            warnings.push(`Length: ${vMeta.durationSecs.toFixed(1)}s (15s or 30s recommended)`);
+                        }
+                    }
+
+                    // Frame rate (23.98 recommended)
                     if (vMeta.fps > 0) {
-                        let validFps = [23.976, 24, 25, 29.97, 30];
-                        let isFpsValid = validFps.some(f => Math.abs(vMeta.fps - f) < 0.5);
-                        if (!isFpsValid) {
-                            amazonErrors.push(`Frame rate: ${vMeta.fps.toFixed(2)} fps is not supported`);
+                        if (Math.abs(vMeta.fps - 23.976) > 0.5) {
+                            warnings.push(`Frame rate: ${vMeta.fps.toFixed(2)} fps (23.98 fps recommended)`);
                         }
-                    }
-
-                    if (amazonErrors.length > 0) {
-                        status = "Fail";
-                        amazonSpecHtml = `<span class='text-error-detail'>Failed Amazon Criteria</span>`;
-                        amazonErrors.forEach(ae => errors.push(`[Amazon] ${ae}`));
-                    } else {
-                        amazonSpecHtml = `<span style="color: #22C55E;">Meets Amazon Specs</span>`;
                     }
                 }
 
-                appendRowToState(file.name, displayExt, sizeStr, audioCodecHtml, amazonSpecHtml, status, errors, sizeMB, maxMBAllowed, activeState);
+                // Determine Status Based on Rule Priority
+                if (errors.length > 0) {
+                    status = "Fail";
+                } else if (warnings.length > 0 || amazonWarnings.length > 0) {
+                    status = "Review"; // Goes to review bucket if it misses a rec OR fails Amazon
+                } else {
+                    status = "Pass";
+                }
+
+                appendRowToState(file.name, displayExt, sizeStr, audioCodecHtml, status, errors, warnings, amazonWarnings, sizeMB, maxMBAllowed, activeState);
             }
 
             document.getElementById('upload-main-text').innerText = "Drag & drop your video files here";
             document.getElementById('upload-icon-svg').style.color = "#64748B";
             
-            // Re-render the UI with the updated state
             renderCurrentState();
         }
 
-        function appendRowToState(name, displayExt, sizeStr, audioCodecHtml, amazonSpecHtml, status, errors, sizeMB, maxMBAllowed, activeState) {
+        function appendRowToState(name, displayExt, sizeStr, audioCodecHtml, status, errors, warnings, amazonWarnings, sizeMB, maxMBAllowed, activeState) {
             let formattedSize = sizeMB > maxMBAllowed ? `<span class='text-error-detail'>${sizeStr}</span>` : sizeStr;
 
             let finalMessages = [];
+            // Push critical errors in RED
             errors.forEach(e => finalMessages.push(`<div class='text-error-detail' style='font-size:12px; line-height:1.25;'>• ${e}</div>`));
+            
+            // Push soft warnings in YELLOW
+            warnings.forEach(w => finalMessages.push(`<div class='text-warning-detail' style='font-size:12px; line-height:1.25;'>• ${w}</div>`));
+            
+            // Push Amazon Strict alerts in BLUE
+            amazonWarnings.forEach(aw => finalMessages.push(`<div class='text-amazon-detail' style='font-size:12px; line-height:1.25;'>• [Amazon Check] ${aw}</div>`));
+            
             let msgHtml = finalMessages.join("");
-
             let statusBlock = "";
 
             if (status === "Pass") {
                 activeState.compliantCount++;
                 statusBlock = `<div class='status-container'><div class='status-main status-text-pass'>${iconPass} Pass</div></div>`;
+            } else if (status === "Review") {
+                activeState.nonCompliantCount++;
+                statusBlock = `<div class='status-container'><div class='status-main status-text-review'>${iconWarning} Review</div>${msgHtml}</div>`;
             } else {
                 activeState.nonCompliantCount++;
                 statusBlock = `<div class='status-container'><div class='status-main status-text-fail'>${iconFail} Fail</div>${msgHtml}</div>`;
             }
 
-            let rowHTML = "";
-            if (currentSpecMode === 'OLV') {
-                rowHTML = `<tr class='data-row'>
-                    <td>${name}</td>
-                    <td>${displayExt}</td>
-                    <td>${formattedSize}</td>
-                    <td>${audioCodecHtml}</td>
-                    <td>${statusBlock}</td>
-                </tr>`;
-            } else {
-                rowHTML = `<tr class='data-row'>
-                    <td>${name}</td>
-                    <td>${displayExt}</td>
-                    <td>${formattedSize}</td>
-                    <td>${audioCodecHtml}</td>
-                    <td>${amazonSpecHtml}</td>
-                    <td>${statusBlock}</td>
-                </tr>`;
-            }
+            let rowHTML = `<tr class='data-row'>
+                <td>${name}</td>
+                <td>${displayExt}</td>
+                <td>${formattedSize}</td>
+                <td>${audioCodecHtml}</td>
+                <td>${statusBlock}</td>
+            </tr>`;
 
             if (status === "Pass") {
                 activeState.passRows.push(rowHTML);
