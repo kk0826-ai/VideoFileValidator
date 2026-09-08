@@ -476,7 +476,7 @@ html_code = """
                         resolved = true;
                         resolve(metadataResult); 
                     }
-                }, 3000);
+                }, 10000); // 10 second timeout for deep chunk reading
 
                 mp4boxfile.onReady = function(info) {
                     if (resolved) return;
@@ -525,29 +525,44 @@ html_code = """
                     resolve(metadataResult);
                 };
 
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    try {
-                        const buffer = e.target.result;
-                        buffer.fileStart = 0;
-                        mp4boxfile.appendBuffer(buffer);
-                        mp4boxfile.flush();
-                    } catch(err) {
-                        if (!resolved) {
-                            resolved = true;
-                            clearTimeout(timeout);
-                            resolve(metadataResult);
-                        }
-                    }
-                };
+                // Smart Chunk Reader (Prevents missing moov atom at the end of the file)
+                let offset = 0;
+                const CHUNK_SIZE = 1024 * 1024 * 10; // Read in 10MB chunks
                 
-                const slice = file.slice(0, 1024 * 1024 * 15); 
-                reader.readAsArrayBuffer(slice);
+                function readNextChunk() {
+                    if (resolved) return;
+                    const slice = file.slice(offset, offset + CHUNK_SIZE);
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        if (resolved) return;
+                        try {
+                            const buffer = e.target.result;
+                            buffer.fileStart = offset;
+                            offset += buffer.byteLength;
+                            mp4boxfile.appendBuffer(buffer);
+                            
+                            if (offset < file.size && !resolved) {
+                                readNextChunk();
+                            } else {
+                                mp4boxfile.flush();
+                            }
+                        } catch(err) {
+                            if (!resolved) {
+                                resolved = true;
+                                clearTimeout(timeout);
+                                resolve(metadataResult);
+                            }
+                        }
+                    };
+                    reader.readAsArrayBuffer(slice);
+                }
+                
+                readNextChunk();
             });
         }
 
         async function handleFiles(files) {
-            document.getElementById('upload-main-text').innerText = "Processing videos (This may take a second)...";
+            document.getElementById('upload-main-text').innerText = "Processing videos (Checking Deep Metadata)...";
             document.getElementById('upload-icon-svg').style.color = "#3B82F6";
             await new Promise(resolve => setTimeout(resolve, 50)); 
 
@@ -655,7 +670,6 @@ html_code = """
                         }
                     }
 
-                    // FIXED FRAME RATE LOGIC:
                     if (vMeta.fps > 0) {
                         let fps = vMeta.fps;
                         
@@ -665,11 +679,14 @@ html_code = """
                         let is29_97 = Math.abs(fps - 29.97) <= 0.1;
                         let is30 = Math.abs(fps - 30) <= 0.1;
                         
-                        // Check if it is completely outside the standard buckets
+                        let displayFps = is23_98 ? "23.98" : fps.toFixed(2);
+
                         if (!is23_98 && !is24 && !is25 && !is29_97 && !is30) {
-                            errors.push(`Frame rate: ${fps.toFixed(2)} fps (Standard: 23.98, 24, 25, 29.97, 30)`);
+                            errors.push(`Frame rate: ${displayFps} fps (Accepted: 23.98, 24, 25, 29.97, 30)`);
+                        } else if (!is23_98) {
+                            // If it's valid (24, 25, 29.97) but not the recommended 23.98
+                            warnings.push(`Frame rate: ${displayFps} fps (23.98 fps recommended)`);
                         }
-                        // If it IS in the bucket (e.g. 25 or 24), we do nothing. It passes without any warning!
                     }
                 }
 
