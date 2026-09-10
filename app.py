@@ -404,7 +404,7 @@ html_code = """
                 document.getElementById('upload-sub-text').innerText = "or click to browse files (MP4 only, max 250MB)";
                 fileInput.accept = "video/mp4";
             } else {
-                document.getElementById('upload-sub-text').innerText = "or click to browse files (MP4 or MOV, max 500MB)";
+                document.getElementById('upload-sub-text').innerText = "or click to browse files (MP4 or MOV, max 300MB)";
                 fileInput.accept = "video/mp4,video/quicktime,.mov";
             }
             
@@ -493,7 +493,6 @@ html_code = """
                         if (track.audio) {
                             metadataResult.audioStreamCount++;
                             metadataResult.hasAudio = true;
-                            // QA FIX 2: Default to "Unknown" rather than passing blindly as AAC
                             metadataResult.codecName = track.codec || "Unknown";
                             if (metadataResult.codecName.toLowerCase().startsWith('mp4a') || metadataResult.codecName.toLowerCase().includes('aac')) {
                                 metadataResult.isAAC = true;
@@ -571,7 +570,7 @@ html_code = """
             await new Promise(resolve => setTimeout(resolve, 50)); 
 
             let activeState = state[currentSpecMode];
-            const maxMBAllowed = currentSpecMode === 'OLV' ? 250 : 500;
+            const maxMBAllowed = currentSpecMode === 'OLV' ? 250 : 300;
             const allowedFormats = currentSpecMode === 'OLV' ? ['MP4'] : ['MP4', 'MOV'];
 
             for (let file of files) {
@@ -612,7 +611,6 @@ html_code = """
 
                 let vMeta = await checkVideoMetadata(file);
                 
-                // QA FIX 1: If parsing totally fails (usually on .mov files)
                 if (vMeta.parseFailed) {
                     status = "Review";
                     audioCodecHtml = `<span class='text-warning-detail'>Unreadable</span>`;
@@ -638,7 +636,6 @@ html_code = """
                         errors.push(`Sample rate: ${(vMeta.sampleRate/1000).toFixed(2)} kHz (48 kHz required)`);
                     }
 
-                    // QA FIX 3: Catch 0 bitrate bugs
                     let bitrateKbps = vMeta.audioBitrate / 1000;
                     if (bitrateKbps > 0 && bitrateKbps < 192) {
                         errors.push(`Audio bitrate: ${bitrateKbps.toFixed(0)} Kbps (Min 192 Kbps required)`);
@@ -716,7 +713,6 @@ html_code = """
             renderCurrentState();
         }
 
-        // QA FIX 4: Simplified row appending
         function appendRowToState(name, displayExt, sizeStr, audioCodecHtml, status, errors, warnings, amazonWarnings, sizeMB, maxMBAllowed, activeState) {
             let formattedSize = sizeMB > maxMBAllowed ? `<span class='text-error-detail'>${sizeStr}</span>` : sizeStr;
 
