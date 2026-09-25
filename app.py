@@ -111,7 +111,7 @@ if not st.session_state.logged_in:
     with col2:
         st.markdown("""
             <div class='welcome-text'>Welcome Back</div>
-            <p class='sub-text'>Please enter the team password to continue.</p>
+            <p class='sub-text'>Please enter the password to login.</p>
         """, unsafe_allow_html=True)
         
         password_attempt = st.text_input("Password", type="password", placeholder="Enter Password", label_visibility="collapsed")
