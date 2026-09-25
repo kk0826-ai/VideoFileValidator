@@ -1,18 +1,166 @@
 import streamlit as st
+import time
 import streamlit.components.v1 as components
 
-# 1. Hide Streamlit's default padding
-st.set_page_config(page_title="Video Validator", layout="wide")
+# 1. Page Config (Must be the first Streamlit command)
+st.set_page_config(page_title="Video Validator", layout="wide", initial_sidebar_state="collapsed")
+
+# --- SECURE LOGIN CONFIGURATION ---
+try:
+    TEAM_PASSWORD = st.secrets["team_password"]
+except KeyError:
+    st.error("Security configuration missing. Please contact Ad Ops.")
+    st.stop()
+
+# Your internal Jira URL
+JIRA_URL = "https://mediaiq.atlassian.net/wiki/x/QIC1QgE"
+
+# Initialize session states
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+if "failed_attempts" not in st.session_state:
+    st.session_state.failed_attempts = 0
+
+# ==========================================
+# CLEAN HIGH-CONTRAST BLOCK LOGIN
+# ==========================================
+if not st.session_state.logged_in:
+    
+    # Brute-Force Defense
+    if st.session_state.failed_attempts >= 5:
+        st.error("🚨 **Security Lockout:** Too many failed attempts. Access blocked for this session.")
+        st.stop()
+
+    # CSS to create the light gray background and high-contrast white block
+    st.markdown("""
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600&display=swap');
+
+            .stApp { background-color: #E2E8F0 !important; }
+            header { visibility: hidden; }
+            footer { visibility: hidden; }
+            
+            [data-testid="column"]:nth-of-type(2) {
+                background-color: #FFFFFF;
+                padding: 50px !important;
+                border: 1px solid #CBD5E1;
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            }
+            
+            div.welcome-text {
+                font-family: 'Manrope', sans-serif !important;
+                font-weight: 500 !important; 
+                color: #0F172A !important;
+                font-size: 32px !important;
+                text-align: center;
+                margin-bottom: 8px !important;
+                letter-spacing: -0.5px;
+            }
+            p.sub-text {
+                font-family: 'Manrope', sans-serif !important;
+                color: #475569 !important;
+                font-size: 15px !important;
+                line-height: 1.6 !important;
+                text-align: center;
+                margin-bottom: 30px !important;
+            }
+            
+            div.stTextInput > div > div > input {
+                font-family: 'Manrope', sans-serif !important;
+                border-radius: 0px !important;
+                border: 2px solid #0F172A !important; 
+                background-color: #F8FAFC !important;
+                height: 52px !important;
+                padding: 0 16px !important;
+                font-size: 16px !important;
+                color: #0F172A !important;
+                transition: all 0.2s ease;
+            }
+            div.stTextInput > div > div > input:focus {
+                border-color: #EA00AD !important; 
+                background-color: #FFFFFF !important;
+                box-shadow: 0 0 0 1px #EA00AD !important;
+            }
+            
+            div.stButton > button {
+                font-family: 'Manrope', sans-serif !important;
+                border-radius: 0px !important;
+                background-color: #0F172A !important; 
+                color: #FFFFFF !important;
+                border: none !important;
+                height: 52px !important;
+                width: 100% !important;
+                font-size: 16px !important;
+                font-weight: 600 !important;
+                letter-spacing: 0.5px !important;
+                text-transform: uppercase !important;
+                margin-top: 16px !important;
+                transition: background-color 0.2s ease;
+            }
+            div.stButton > button:hover {
+                background-color: #EA00AD !important; 
+                color: #FFFFFF !important;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    st.write("<br><br><br>", unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 1.2, 1])
+    
+    with col2:
+        st.markdown("""
+            <div class='welcome-text'>Welcome Back</div>
+            <p class='sub-text'>Please enter the team password to continue.</p>
+        """, unsafe_allow_html=True)
+        
+        password_attempt = st.text_input("Password", type="password", placeholder="Enter Password", label_visibility="collapsed")
+        
+        if st.button("Log In", use_container_width=True):
+            if password_attempt == TEAM_PASSWORD:
+                st.session_state.logged_in = True
+                st.session_state.failed_attempts = 0  
+                st.rerun()  
+            else:
+                st.session_state.failed_attempts += 1
+                time.sleep(st.session_state.failed_attempts * 2) 
+                st.error("Incorrect password.")
+
+        st.markdown(f"""
+            <div style='text-align: center; margin-top: 20px;'>
+                <span style='color: #64748B; font-family: "Manrope", sans-serif; font-size: 14px;'>
+                    Find the password <a href='{JIRA_URL}' target='_blank' style='color: #EA00AD; font-weight: 600; text-decoration: none;'>here</a>.
+                </span>
+            </div>
+        """, unsafe_allow_html=True)
+    
+    # Halts the script here until logged in
+    st.stop()
+
+# ==========================================
+# SIDEBAR LOGOUT BUTTON
+# ==========================================
+with st.sidebar:
+    st.success("✅ MiQ Access Verified")
+    st.write("---")
+    if st.button("Lock System", use_container_width=True):
+        st.session_state.logged_in = False
+        st.rerun()
+
+# ---------------------------------------------------------
+# YOUR NEW APP CODE GOES BELOW THIS LINE
+# ---------------------------------------------------------
 st.markdown("""
     <style>
         .block-container { padding: 0rem !important; }
+        .stApp { background-color: #FAFAFA !important; }
         header { visibility: hidden; }
         #MainMenu { visibility: hidden; }
         footer { visibility: hidden; }
     </style>
 """, unsafe_allow_html=True)
 
-# 2. Commercial-Grade HTML/JS Code
+# 2. Commercial-Grade HTML/JS Code (Video Validator)
 html_code = """
 <!DOCTYPE html>
 <html lang="en">
